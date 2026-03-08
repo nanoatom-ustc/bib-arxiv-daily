@@ -1,19 +1,23 @@
 arxiv:
-  categories: []
-  max_candidates: 80
+  categories:
+    - nucl-th
+    - nucl-ex
+    - hep-ph
+    - hep-th
+  max_candidates: 100
 
 embedding:
   model: BAAI/bge-small-en-v1.5
   batch_size: 32
 
 ranking:
-  top_k_neighbors: 5
+  top_k_neighbors: 6
   max_results: 15
 
 email:
-  subject_prefix: "[arXiv Daily]"
+  subject_prefix: "[arXiv Nuclear]"
   include_pdf_links: true
-  send_empty_email: false
+  send_empty_email: true
 
 runtime:
   data_dir: data
