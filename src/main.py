@@ -54,7 +54,7 @@ def main() -> int:
         categories=settings.arxiv.categories,
         max_candidates=settings.arxiv.max_candidates,
     )
-    candidate_papers = fetcher.fetch_new_papers()
+    candidate_papers, fetch_stats = fetcher.fetch_new_papers()
 
     embedder = SentenceTransformerEmbedder(
         model_name=settings.embedding.model,
@@ -72,16 +72,27 @@ def main() -> int:
         top_k_neighbors=settings.ranking.top_k_neighbors,
         max_results=settings.ranking.max_results,
     )
-    recommendations = recommender.recommend(
+    recommendations, recommendation_stats = recommender.recommend(
         library_papers,
         candidate_papers,
         library_embeddings=library_embeddings,
+    )
+    LOGGER.info(
+        "Pipeline stats | rss_new=%s rss_unique=%s fetched=%s after_dedup=%s threshold_filtered=%s final=%s",
+        fetch_stats.rss_new_count,
+        fetch_stats.rss_unique_count,
+        fetch_stats.fetched_candidate_count,
+        recommendation_stats.after_dedup_filter_count,
+        recommendation_stats.threshold_filtered_count,
+        recommendation_stats.final_recommendation_count,
     )
 
     generated_at = datetime.now(timezone.utc)
     html_body = build_email_html(
         recommendations=recommendations,
-        stats=library_stats,
+        library_stats=library_stats,
+        fetch_stats=fetch_stats,
+        recommendation_stats=recommendation_stats,
         include_pdf_links=settings.email.include_pdf_links,
         generated_at=generated_at,
     )

@@ -5,7 +5,7 @@ import logging
 
 import feedparser
 
-from models import CandidatePaper
+from models import ArxivFetchStats, CandidatePaper
 from utils import chunked, clean_text, extract_arxiv_id
 
 
@@ -26,7 +26,7 @@ class ArxivFetcher:
             self._arxiv_module = arxiv
         return self._arxiv_module
 
-    def fetch_new_papers(self) -> list[CandidatePaper]:
+    def fetch_new_papers(self) -> tuple[list[CandidatePaper], ArxivFetchStats]:
         if not self.categories:
             raise ValueError("At least one arXiv category must be configured")
 
@@ -48,8 +48,13 @@ class ArxivFetcher:
 
         unique_ids = list(dict.fromkeys(paper_ids))[: self.max_candidates]
         LOGGER.info("Fetched %s new arXiv ids from RSS feed", len(unique_ids))
+        fetch_stats = ArxivFetchStats(
+            rss_new_count=len(paper_ids),
+            rss_unique_count=len(unique_ids),
+            fetched_candidate_count=0,
+        )
         if not unique_ids:
-            return []
+            return [], fetch_stats
 
         arxiv_module = self._get_arxiv_module()
         client = arxiv_module.Client(num_retries=5, delay_seconds=3)
@@ -64,7 +69,12 @@ class ArxivFetcher:
             key=lambda item: item.published or datetime.min,
             reverse=True,
         )
-        return candidates[: self.max_candidates]
+        fetch_stats = ArxivFetchStats(
+            rss_new_count=len(paper_ids),
+            rss_unique_count=len(unique_ids),
+            fetched_candidate_count=len(candidates[: self.max_candidates]),
+        )
+        return candidates[: self.max_candidates], fetch_stats
 
     def _convert_result(self, result) -> CandidatePaper:
         title = clean_text(getattr(result, "title", ""))
@@ -90,4 +100,3 @@ class ArxivFetcher:
             doi=doi,
             arxiv_id=arxiv_id,
         )
-

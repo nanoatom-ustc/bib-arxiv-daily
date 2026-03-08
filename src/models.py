@@ -64,3 +64,17 @@ class LibraryLoadStats:
     skipped_missing_title: int
     skipped_missing_abstract: int
 
+
+@dataclass(frozen=True)
+class ArxivFetchStats:
+    rss_new_count: int
+    rss_unique_count: int
+    fetched_candidate_count: int
+
+
+@dataclass(frozen=True)
+class RecommendationStats:
+    input_candidate_count: int
+    after_dedup_filter_count: int
+    threshold_filtered_count: int
+    final_recommendation_count: int

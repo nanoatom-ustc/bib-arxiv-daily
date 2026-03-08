@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from models import CandidatePaper, LibraryPaper, NeighborMatch, Recommendation
+from models import CandidatePaper, LibraryPaper, NeighborMatch, Recommendation, RecommendationStats
 from utils import canonical_identity
 
 
@@ -25,9 +25,14 @@ class Recommender:
         library_papers: list[LibraryPaper],
         candidate_papers: list[CandidatePaper],
         library_embeddings: np.ndarray | None = None,
-    ) -> list[Recommendation]:
+    ) -> tuple[list[Recommendation], RecommendationStats]:
         if not library_papers or not candidate_papers:
-            return []
+            return [], RecommendationStats(
+                input_candidate_count=len(candidate_papers),
+                after_dedup_filter_count=0,
+                threshold_filtered_count=0,
+                final_recommendation_count=0,
+            )
 
         library_identities = {
             identity
@@ -42,7 +47,12 @@ class Recommender:
             if canonical_identity(paper.title, paper.doi, paper.arxiv_id) not in library_identities
         ]
         if not filtered_candidates:
-            return []
+            return [], RecommendationStats(
+                input_candidate_count=len(candidate_papers),
+                after_dedup_filter_count=0,
+                threshold_filtered_count=0,
+                final_recommendation_count=0,
+            )
 
         if library_embeddings is None:
             library_embeddings = self.embedder.encode([paper.embedding_text for paper in library_papers])
@@ -71,4 +81,11 @@ class Recommender:
             recommendations.append(Recommendation(candidate=candidate, score=score, neighbors=neighbors))
 
         recommendations.sort(key=lambda item: item.score, reverse=True)
-        return recommendations[: self.max_results]
+        final_recommendations = recommendations[: self.max_results]
+        recommendation_stats = RecommendationStats(
+            input_candidate_count=len(candidate_papers),
+            after_dedup_filter_count=len(filtered_candidates),
+            threshold_filtered_count=0,
+            final_recommendation_count=len(final_recommendations),
+        )
+        return final_recommendations, recommendation_stats

@@ -73,10 +73,13 @@ class ArxivFetcherTest(unittest.TestCase):
             arxiv_module=fake_arxiv,
         )
 
-        papers = fetcher.fetch_new_papers()
+        papers, stats = fetcher.fetch_new_papers()
 
         self.assertEqual("https://rss.arxiv.org/atom/cs.LG+cs.AI", fake_feedparser.last_url)
         self.assertEqual(2, len(papers))
+        self.assertEqual(2, stats.rss_new_count)
+        self.assertEqual(2, stats.rss_unique_count)
+        self.assertEqual(2, stats.fetched_candidate_count)
         self.assertEqual(("2501.00001", "2501.00003"), fake_arxiv.created_client.seen_batches[0])
         self.assertEqual("2501.00001v1", papers[0].arxiv_id)
         self.assertEqual("2501.00003v1", papers[1].arxiv_id)

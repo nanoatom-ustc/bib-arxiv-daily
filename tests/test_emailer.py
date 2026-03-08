@@ -12,7 +12,7 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from emailer import build_email_html
-from models import CandidatePaper, LibraryLoadStats, NeighborMatch, Recommendation
+from models import ArxivFetchStats, CandidatePaper, LibraryLoadStats, NeighborMatch, Recommendation, RecommendationStats
 
 
 class EmailerTest(unittest.TestCase):
@@ -41,15 +41,35 @@ class EmailerTest(unittest.TestCase):
             skipped_missing_title=0,
             skipped_missing_abstract=1,
         )
+        fetch_stats = ArxivFetchStats(
+            rss_new_count=4,
+            rss_unique_count=4,
+            fetched_candidate_count=4,
+        )
+        recommendation_stats = RecommendationStats(
+            input_candidate_count=4,
+            after_dedup_filter_count=3,
+            threshold_filtered_count=0,
+            final_recommendation_count=1,
+        )
 
-        html = build_email_html([recommendation], stats, include_pdf_links=True, generated_at=datetime(2025, 1, 1))
+        html = build_email_html(
+            [recommendation],
+            library_stats=stats,
+            fetch_stats=fetch_stats,
+            recommendation_stats=recommendation_stats,
+            include_pdf_links=True,
+            generated_at=datetime(2025, 1, 1),
+        )
 
         self.assertIn("Graph Signal Learning", html)
         self.assertIn("Graph Neural Networks", html)
         self.assertIn("http://arxiv.org/pdf/2501.00001v1", html)
         self.assertIn("Library papers with abstracts: 8", html)
+        self.assertIn("RSS new papers:", html)
+        self.assertIn("After dedupe / already-in-library filter:", html)
+        self.assertIn("Threshold filtered:", html)
 
 
 if __name__ == "__main__":
     unittest.main()
-

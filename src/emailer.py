@@ -6,7 +6,7 @@ from email.mime.text import MIMEText
 import html
 import smtplib
 
-from models import LibraryLoadStats, Recommendation
+from models import ArxivFetchStats, LibraryLoadStats, Recommendation, RecommendationStats
 from settings import SMTPSettings
 
 
@@ -23,25 +23,35 @@ def build_email_subject(subject_prefix: str, recommendation_count: int, generate
 
 def build_email_html(
     recommendations: list[Recommendation],
-    stats: LibraryLoadStats,
+    library_stats: LibraryLoadStats,
+    fetch_stats: ArxivFetchStats,
+    recommendation_stats: RecommendationStats,
     include_pdf_links: bool,
     generated_at: datetime,
 ) -> str:
-    summary = (
+    library_summary = (
         f"<p>Generated at {generated_at:%Y-%m-%d %H:%M UTC}. "
-        f"Library papers with abstracts: {stats.entries_with_abstract}. "
-        f"Skipped missing abstracts: {stats.skipped_missing_abstract}. "
-        f"Duplicates removed: {stats.duplicates_removed}.</p>"
+        f"Library papers with abstracts: {library_stats.entries_with_abstract}. "
+        f"Skipped missing abstracts: {library_stats.skipped_missing_abstract}. "
+        f"Duplicates removed: {library_stats.duplicates_removed}.</p>"
+    )
+    pipeline_summary = (
+        "<div class='paper-card'>"
+        "<h2>Pipeline summary</h2>"
+        f"<p><strong>RSS new papers:</strong> {fetch_stats.rss_new_count}</p>"
+        f"<p><strong>After dedupe / already-in-library filter:</strong> {recommendation_stats.after_dedup_filter_count}</p>"
+        f"<p><strong>Threshold filtered:</strong> {recommendation_stats.threshold_filtered_count}</p>"
+        "</div>"
     )
 
     if not recommendations:
         body = (
             "<div class='paper-card'>"
             "<h2>No new matches today</h2>"
-            "<p>The workflow ran successfully but did not find any new arXiv papers close to your bib corpus.</p>"
+            f"<p>{html.escape(_build_empty_reason(fetch_stats, recommendation_stats))}</p>"
             "</div>"
         )
-        return _wrap_html(summary + body)
+        return _wrap_html(library_summary + pipeline_summary + body)
 
     blocks = []
     for recommendation in recommendations:
@@ -66,7 +76,20 @@ def build_email_html(
             "</div>"
         )
 
-    return _wrap_html(summary + "".join(blocks))
+    return _wrap_html(library_summary + pipeline_summary + "".join(blocks))
+
+
+def _build_empty_reason(fetch_stats: ArxivFetchStats, recommendation_stats: RecommendationStats) -> str:
+    if fetch_stats.rss_new_count == 0:
+        return "RSS returned 0 new papers in the configured categories."
+    if recommendation_stats.after_dedup_filter_count == 0:
+        return "RSS returned papers, but 0 remained after dedupe / already-in-library filtering."
+    if (
+        recommendation_stats.threshold_filtered_count > 0
+        and recommendation_stats.final_recommendation_count == 0
+    ):
+        return "Candidates existed, but all of them were filtered out by the score threshold."
+    return "The workflow ran successfully but did not find any new arXiv papers close to your bib corpus."
 
 
 def _wrap_html(content: str) -> str:
@@ -107,4 +130,3 @@ def send_email(subject: str, html_body: str, smtp_settings: SMTPSettings) -> Non
         server.ehlo()
         server.login(smtp_settings.username, smtp_settings.password)
         server.sendmail(smtp_settings.sender, [smtp_settings.recipient], message.as_string())
-

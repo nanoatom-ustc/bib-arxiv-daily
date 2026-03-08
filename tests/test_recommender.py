@@ -72,9 +72,13 @@ class RecommenderTest(unittest.TestCase):
             max_results=5,
         )
 
-        recommendations = recommender.recommend(library_papers, candidate_papers)
+        recommendations, stats = recommender.recommend(library_papers, candidate_papers)
 
         self.assertEqual(1, len(recommendations))
+        self.assertEqual(2, stats.input_candidate_count)
+        self.assertEqual(1, stats.after_dedup_filter_count)
+        self.assertEqual(0, stats.threshold_filtered_count)
+        self.assertEqual(1, stats.final_recommendation_count)
         self.assertEqual("Graph Signal Learning", recommendations[0].candidate.title)
         self.assertAlmostEqual(0.6063, recommendations[0].score, places=4)
         self.assertEqual("Graph Neural Networks", recommendations[0].neighbors[0].title)

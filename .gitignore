@@ -4,6 +4,7 @@ __pycache__/
 .mypy_cache/
 .cache/
 output/
+data/
 *.pyc
 *.pyo
 *.pyd
